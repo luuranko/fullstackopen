@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react'
 import personService from './services/persons'
+import './index.css'
 
 const Filter = ({nameFilter, handleNameFilterChange}) => {
   return (
@@ -45,11 +46,23 @@ const Person = ({person, handleDeletePerson}) => {
   )
 }
 
+const Notification = ({message, showError}) => {
+  if (!message) return null;
+  const classes = showError ? 'message error' : 'message'
+  return (
+    <div className={classes}>
+      {message}
+    </div>
+  )
+}
+
 const App = () => {
   const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [nameFilter, setNameFilter] = useState('')
+  const [message, setMessage] = useState('')
+  const [showError, setShowError] = useState(false)
 
   useEffect(() => {
     personService.getAll().then(res => setPersons(res))
@@ -86,6 +99,7 @@ const App = () => {
           setPersons(persons.concat(res))
           setNewName('')
           setNewNumber('')
+          showMessage(`Added ${res.name}`)
         })
     }
   }
@@ -101,6 +115,11 @@ const App = () => {
         setPersons(persons.map(p => p.id !== person.id ? p : res))
         setNewName('')
         setNewNumber('')
+        showMessage(`Updated number of ${res.name}`)
+      })
+      .catch(() => {
+        showMessage(`Error: ${person.name} has already been removed from server`, true)
+        setPersons(persons.filter(p => p.id !== person.id))
       })
   }
 
@@ -109,12 +128,24 @@ const App = () => {
       const id = person.id
       personService
         .deletePerson(id)
-        .then(setPersons(persons.filter(p => p.id !== id)))
-        .catch(error => {
-          alert(`Error while deleting ${person.name}: ${error}`)
+        .then(() => {
+          setPersons(persons.filter(p => p.id !== id))
+          showMessage(`Deleted ${person.name}`)
+        })
+        .catch(() => {
+          showMessage(`Error: ${person.name} has already been removed from server`, true)
           setPersons(persons.filter(p => p.id !== id))
         })
     }
+  }
+
+  const showMessage = (msg, isError = false) => {
+    setMessage(msg)
+    if (isError) setShowError(true)
+    setTimeout(() => {
+      setMessage(null)
+      setShowError(false)
+    }, 5000)
   }
 
   const filteredPersons = () => {
@@ -126,6 +157,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={message} showError={showError}/>
       <Filter
         nameFilter={nameFilter}
         handleNameFilterChange={handleNameFilterChange}
