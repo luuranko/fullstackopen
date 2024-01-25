@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import personService from './services/persons'
 
 const Filter = ({nameFilter, handleNameFilterChange}) => {
   return (
@@ -27,28 +28,32 @@ const AddPersonForm = ({addPerson, newName, newNumber, handleNameChange, handleN
   )
 }
 
-const ContactList = ({persons}) => {
+const ContactList = ({persons, handleDeletePerson}) => {
   return (
-    <div>{persons.map((person) => <Person key={person.name} person={person}/>)}</div>
+    <div>{persons.map((person) => 
+    <div key={person.id}>
+      <Person person={person} handleDeletePerson={handleDeletePerson}/>
+    </div>
+    )}
+    </div>
   )
 }
 
-const Person = ({person}) => {
+const Person = ({person, handleDeletePerson}) => {
   return (
-    <p>{person.name} {person.number}</p>
+    <div>{person.name} {person.number} <button onClick={() => handleDeletePerson(person)}>delete</button> </div>
   )
 }
 
 const App = () => {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456' },
-    { name: 'Ada Lovelace', number: '39-44-5323523' },
-    { name: 'Dan Abramov', number: '12-43-234345' },
-    { name: 'Mary Poppendieck', number: '39-23-6423122' }
-  ])
+  const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [nameFilter, setNameFilter] = useState('')
+
+  useEffect(() => {
+    personService.getAll().then(res => setPersons(res))
+  }, [])
 
   const handleNameChange = (event) => {
     setNewName(event.target.value)
@@ -66,17 +71,50 @@ const App = () => {
     event.preventDefault()
     const name = newName.trim()
     const number = newNumber.trim()
-    if (persons.some((person) => person.name === name)) {
-      window.alert(`${name} is already added to phonebook`)
-      return
-    }
+    const existingPerson = persons.find(person => person.name === name)
     if (!name || !number) {
+      alert('Provide a name and a number')
       return;
     }
-    const newPerson = { id: persons.length + 1, name: name, number: number }
-    setPersons([...persons, newPerson])
-    setNewName('')
-    setNewNumber('')
+    if (existingPerson) {
+      updateNumber(existingPerson, number)
+    } else {
+      const newPerson = { name: name, number: number }
+      personService
+        .create(newPerson)
+        .then(res => {
+          setPersons(persons.concat(res))
+          setNewName('')
+          setNewNumber('')
+        })
+    }
+  }
+
+  const updateNumber = (person, newNumber) => {
+    if (!confirm (`${person.name} is already added to phonebook, replace the old number with a new one?`)) {
+      return
+    }
+    const updatedPerson = { ...person, number: newNumber}
+    personService
+      .update(person.id, updatedPerson)
+      .then(res => {
+        setPersons(persons.map(p => p.id !== person.id ? p : res))
+        setNewName('')
+        setNewNumber('')
+      })
+  }
+
+  const handleDeletePerson = person => {
+    if (confirm(`Delete ${person.name}?`)) {
+      const id = person.id
+      personService
+        .deletePerson(id)
+        .then(setPersons(persons.filter(p => p.id !== id)))
+        .catch(error => {
+          alert(`Error while deleting ${person.name}: ${error}`)
+          setPersons(persons.filter(p => p.id !== id))
+        })
+    }
   }
 
   const filteredPersons = () => {
@@ -101,7 +139,7 @@ const App = () => {
         handleNumberChange={handleNumberChange}
       />
       <h2>Numbers</h2>
-      <ContactList persons={filteredPersons()}/>
+      <ContactList persons={filteredPersons()} handleDeletePerson={handleDeletePerson}/>
     </div>
   )
 
