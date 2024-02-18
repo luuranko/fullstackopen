@@ -1,7 +1,6 @@
 const mongoose = require('mongoose')
 const url = process.env.MONGODB_URI
 mongoose.set('strictQuery', false)
-console.log('connecting to', url)
 mongoose.connect(url)
 const personSchema = new mongoose.Schema({
   name: {
