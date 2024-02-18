@@ -85,10 +85,6 @@ const App = () => {
     const name = newName.trim()
     const number = newNumber.trim()
     const existingPerson = persons.find(person => person.name === name)
-    if (!name || !number) {
-      alert('Provide a name and a number')
-      return;
-    }
     if (existingPerson) {
       updateNumber(existingPerson, number)
     } else {
@@ -100,6 +96,9 @@ const App = () => {
           setNewName('')
           setNewNumber('')
           showMessage(`Added ${res.name}`)
+        })
+        .catch(error => {
+          showMessage(error.response.data.error, true)
         })
     }
   }
@@ -117,9 +116,8 @@ const App = () => {
         setNewNumber('')
         showMessage(`Updated number of ${res.name}`)
       })
-      .catch(() => {
-        showMessage(`Error: ${person.name} has already been removed from server`, true)
-        setPersons(persons.filter(p => p.id !== person.id))
+      .catch((error) => {
+        showMessage(error.response.data.error, true)
       })
   }
 
