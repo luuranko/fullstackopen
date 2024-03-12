@@ -1,11 +1,12 @@
 const { test, describe } = require('node:test')
 const assert = require('node:assert')
-const
-  { dummy,
-    totalLikes,
-    favoriteBlog,
-    mostBlogs,
-    mostLikes, } = require('../utils/helper_functions')
+const {
+  dummy,
+  totalLikes,
+  favoriteBlog,
+  mostBlogs,
+  mostLikes,
+} = require('../utils/helper_functions')
 const { blogList } = require('./testing_material')
 
 test('dummy returns one', () => {

@@ -1,9 +1,9 @@
 POST http://localhost:3003/api/blogs
 Content-Type: application/json
+Authorization: Bearer TOKEN_TÄHÄN
 
 {
-  "title": "Älykköploki",
+  "title": "Toinen ploki",
   "author": "Lare",
-  "url": "wikipedia piste fi",
-  "likes": 9999
+  "url": "urlurlurl"
 }

@@ -1,16 +1,34 @@
-const { describe, test, after, beforeEach } = require('node:test')
+const { describe, test, after, beforeEach, before } = require('node:test')
 const assert = require('node:assert')
 const mongoose = require('mongoose')
 const supertest = require('supertest')
 const app = require('../app')
 const api = supertest(app)
 const Blog = require('../models/blog')
-const { initialBlogs, blogsInDb, nonExistingId } = require('./test_helper')
+const {
+  initialBlogs,
+  initialUsers,
+  blogsInDb,
+  nonExistingId,
+  setUpUsers,
+  setUpBlogs,
+} = require('./test_helper')
+const User = require('../models/user')
 
-describe('when there are initially some saved blogs', () => {
-  beforeEach(async() => {
-    await Blog.deleteMany({})
-    await Blog.insertMany(initialBlogs)
+const getToken = async (username = initialUsers[0].username) => {
+  const login = await api
+    .post('/api/login')
+    .send(initialUsers.find(user => user.username === username))
+    .expect(200)
+  return `Bearer ${login.body.token}`
+}
+
+describe('when there are initially some saved blogs', async () => {
+  before(async () => {
+    await setUpUsers()
+  })
+  beforeEach(async () => {
+    await setUpBlogs()
   })
 
   test('blogs are returned as json', async () => {
@@ -32,16 +50,29 @@ describe('when there are initially some saved blogs', () => {
     assert.strictEqual(firstBlogKeys.includes('_id'), false)
   })
 
-  describe('posting a new blog', () => {
-
+  describe('posting a new blog', async () => {
+    test('fails with status code 400 if user is not logged in', async () => {
+      const newBlog = {
+        title: 'Lisätty blogi',
+        author: 'Lare',
+        url: 'kolmas-url.fi',
+        likes: 9999,
+      }
+      await api.post('/api/blogs').send(newBlog).expect(400)
+      const res = await api.get('/api/blogs')
+      assert.strictEqual(res.body.length, initialBlogs.length)
+    })
     test('succeeds with valid data', async () => {
       const newBlog = {
-        'title': 'Lisätty blogi',
-        'author': 'Lare',
-        'url': 'kolmas-url.fi',
-        'likes': 9999
+        title: 'Lisätty blogi',
+        author: 'Lare',
+        url: 'kolmas-url.fi',
+        likes: 9999,
       }
-      await api.post('/api/blogs')
+      const token = await getToken()
+      await api
+        .post('/api/blogs')
+        .set('Authorization', token)
         .send(newBlog)
         .expect(201)
         .expect('Content-Type', /application\/json/)
@@ -51,13 +82,36 @@ describe('when there are initially some saved blogs', () => {
       assert.strictEqual(addedBlog.url, 'kolmas-url.fi')
     })
 
+    test('the blog contains information of the user which posted it', async () => {
+      const newBlog = {
+        title: 'Lisätty blogi',
+        author: 'Lare',
+        url: 'kolmas-url.fi',
+        likes: 9999,
+      }
+      const token = await getToken()
+      await api
+        .post('/api/blogs')
+        .set('Authorization', token)
+        .send(newBlog)
+        .expect(201)
+        .expect('Content-Type', /application\/json/)
+      const res = await api.get('/api/blogs')
+      const addedBlog = res.body.find(blog => blog.title === 'Lisätty blogi')
+      const user = await User.findById(addedBlog.user.id)
+      assert.strictEqual(initialUsers[0].username, user.username)
+    })
+
     test('if not provided with another value, a new blog has 0 likes', async () => {
       const newBlog = {
-        'title': 'Lisätty blogi',
-        'author': 'Lare',
-        'url': 'kolmas-url.fi'
+        title: 'Lisätty blogi',
+        author: 'Lare',
+        url: 'kolmas-url.fi',
       }
-      await api.post('/api/blogs')
+      const token = await getToken()
+      await api
+        .post('/api/blogs')
+        .set('Authorization', token)
         .send(newBlog)
         .expect(201)
         .expect('Content-Type', /application\/json/)
@@ -70,9 +124,12 @@ describe('when there are initially some saved blogs', () => {
       const newBlog = {
         author: 'Lare',
         url: 'blog without title',
-        likes: 1
+        likes: 1,
       }
-      await api.post('/api/blogs')
+      const token = await getToken()
+      await api
+        .post('/api/blogs')
+        .set('Authorization', token)
         .send(newBlog)
         .expect(400)
       const res = await api.get('/api/blogs')
@@ -83,37 +140,69 @@ describe('when there are initially some saved blogs', () => {
       const newBlog = {
         title: 'blog without URL',
         author: 'Lare',
-        likes: 1
+        likes: 1,
       }
-      await api.post('/api/blogs')
+      const token = await getToken()
+      await api
+        .post('/api/blogs')
+        .set('Authorization', token)
         .send(newBlog)
         .expect(400)
       const res = await api.get('/api/blogs')
       assert.strictEqual(res.body.length, initialBlogs.length)
     })
-
   })
 
-  describe('deletion of a blog', () => {
-    test('succeeds with status code 204 if id is valid', async () => {
+  describe('deletion of a blog', async () => {
+    test('succeeds with status code 204 if id is valid and the same used added the blog', async () => {
       const blogsAtStart = await blogsInDb()
       const blogToDelete = blogsAtStart[0]
-      await api.delete(`/api/blogs/${blogToDelete.id}`)
+      const user = await User.findById(blogToDelete.user)
+      const token = await getToken(user.username)
+      await api
+        .delete(`/api/blogs/${blogToDelete.id}`)
+        .set('Authorization', token)
         .expect(204)
       const blogsAtEnd = await blogsInDb()
       const urls = blogsAtEnd.map(blog => blog.url)
       assert(!urls.includes(blogToDelete.url))
       assert.strictEqual(blogsAtEnd.length, initialBlogs.length - 1)
     })
+    test('fails with status code 401 if not logged in', async () => {
+      const blogsAtStart = await blogsInDb()
+      const blogToDelete = blogsAtStart[0]
+      await api.delete(`/api/blogs/${blogToDelete.id}`).expect(400)
+      const blogsAtEnd = await blogsInDb()
+      const urls = blogsAtEnd.map(blog => blog.url)
+      assert(urls.includes(blogToDelete.url))
+      assert.strictEqual(blogsAtEnd.length, initialBlogs.length)
+    })
+    test('fails with status code 401 if user did not add the blog', async () => {
+      const blogsAtStart = await blogsInDb()
+      const blogToDelete = blogsAtStart[0]
+      const user = await User.findById(blogsAtStart[1].user) // different blog with different user
+      const token = await getToken(user.username)
+      await api
+        .delete(`/api/blogs/${blogToDelete.id}`)
+        .set('Authorization', token)
+        .expect(400)
+      const blogsAtEnd = await blogsInDb()
+      const urls = blogsAtEnd.map(blog => blog.url)
+      assert(urls.includes(blogToDelete.url))
+      assert.strictEqual(blogsAtEnd.length, initialBlogs.length)
+    })
     test('fails with status code 400 if blog with that id does not exist', async () => {
-      await api.delete(`/api/blogs/${nonExistingId}`)
+      const token = await getToken()
+      await api
+        .delete(`/api/blogs/${nonExistingId}`)
+        .set('Authorization', token)
         .expect(400)
       const blogsAtEnd = await blogsInDb()
       assert.strictEqual(blogsAtEnd.length, initialBlogs.length)
     })
   })
 
-  describe('making changes to a blog', () => {
+  describe('making changes to a blog', async () => {
     test('succeeds with status code 200 if id and fields are valid', async () => {
       const blogs = await blogsInDb()
       const blogToModify = blogs[0]
@@ -122,9 +211,10 @@ describe('when there are initially some saved blogs', () => {
         title: 'new title',
         url: 'new url',
         likes: 1,
-        author: 'new author'
+        author: 'new author',
       }
-      await api.put(`/api/blogs/${blogToModify.id}`)
+      await api
+        .put(`/api/blogs/${blogToModify.id}`)
         .send(modifiedBlog)
         .expect(200)
       const updatedBlogs = await blogsInDb()
@@ -138,7 +228,8 @@ describe('when there are initially some saved blogs', () => {
         ...blogToModify,
         likes: 99,
       }
-      await api.put(`/api/blogs/${blogToModify.id}`)
+      await api
+        .put(`/api/blogs/${blogToModify.id}`)
         .send(modifiedBlog)
         .expect(200)
       const updatedBlogs = await blogsInDb()
@@ -150,9 +241,10 @@ describe('when there are initially some saved blogs', () => {
         title: 'new title',
         url: 'new url',
         likes: 1,
-        author: 'new author'
+        author: 'new author',
       }
-      await api.put(`/api/blogs/${nonExistingId}`)
+      await api
+        .put(`/api/blogs/${nonExistingId}`)
         .send(modifiedBlog)
         .expect(400)
       const blogs = await blogsInDb()
@@ -161,7 +253,7 @@ describe('when there are initially some saved blogs', () => {
           title: blog.title,
           author: blog.author,
           likes: blog.likes,
-          url: blog.url
+          url: blog.url,
         }
       })
       assert.deepStrictEqual(initialBlogs, blogsAtEnd)
@@ -169,9 +261,10 @@ describe('when there are initially some saved blogs', () => {
     test('fails with status code 400 if provided with invalid fields', async () => {
       const modifiedBlog = {
         likes: 'this is a string',
-        author: 'new author'
+        author: 'new author',
       }
-      await api.put(`/api/blogs/${nonExistingId}`)
+      await api
+        .put(`/api/blogs/${nonExistingId}`)
         .send(modifiedBlog)
         .expect(400)
       const blogs = await blogsInDb()
@@ -180,7 +273,7 @@ describe('when there are initially some saved blogs', () => {
           title: blog.title,
           author: blog.author,
           likes: blog.likes,
-          url: blog.url
+          url: blog.url,
         }
       })
       assert.deepStrictEqual(initialBlogs, blogsAtEnd)
@@ -189,6 +282,7 @@ describe('when there are initially some saved blogs', () => {
 
   after(async () => {
     await Blog.deleteMany({})
+    await User.deleteMany({})
     await mongoose.connection.close()
   })
 })
