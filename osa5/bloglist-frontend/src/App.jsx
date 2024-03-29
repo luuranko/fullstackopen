@@ -1,32 +1,38 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Blog from './components/Blog'
 import blogService from './services/blogs'
 import loginService from './services/login'
 import Notification from './components/Notification'
+import NewBlogForm from './components/newblogform'
+import Togglable from './components/Togglable'
 
 const App = () => {
   const [blogs, setBlogs] = useState([])
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [user, setUser] = useState(null)
-  const [title, setTitle] = useState('')
-  const [author, setAuthor] = useState('')
-  const [url, setURL] = useState('')
   const [notification, setNotification] = useState('')
   const [errorNotification, setErrorNotification] = useState('')
 
   useEffect(() => {
-    blogService.getAll().then(blogs => setBlogs(blogs))
+    blogService.getAll().then(blogs => handleSetBlogs(blogs))
   }, [])
 
   useEffect(() => {
     const loggedUserJSON = window.localStorage.getItem('loggedBloglistUser')
     if (loggedUserJSON) {
       const user = JSON.parse(loggedUserJSON)
-      setUser(user)
-      blogService.setToken(user.token)
+      // check if token has expired
+      if (user.exp * 1000 > Date.now()) {
+        setUser(user)
+        blogService.setToken(user.token)
+      }
     }
   }, [])
+
+  const handleSetBlogs = blogs => {
+    setBlogs(blogs.sort((a, b) => b.likes - a.likes))
+  }
 
   const handleLogin = async event => {
     event.preventDefault()
@@ -40,48 +46,100 @@ const App = () => {
       setNotification(`Logged in as ${user.username}`)
       hideNotification()
     } catch (error) {
-      console.error(error)
-      setErrorNotification(`Wrong username or password`)
-      hideNotification()
+      handleError(error)
     }
   }
 
   const handleLogout = async event => {
-    event.preventDefault()
+    event?.preventDefault()
     window.localStorage.removeItem('loggedBloglistUser')
     setUser(null)
     blogService.setToken(null)
-    setNotification(`Logged out`)
+    setNotification('Logged out')
     hideNotification()
   }
 
-  const handleAddBlog = async event => {
-    event.preventDefault()
+  const handleAddBlog = async blog => {
     try {
-      const blog = {
-        title,
-        author,
-        url,
-      }
       const newBlog = await blogService.create(blog)
-      setBlogs(blogs.concat(newBlog))
-      setTitle('')
-      setAuthor('')
-      setURL('')
+      handleSetBlogs(blogs.concat(newBlog))
       setNotification(`Added a new blog: ${newBlog.title} by ${newBlog.author}`)
       hideNotification()
+      newBlogFormRef.current.toggleVisibility()
+      return true
     } catch (error) {
-      console.error(error)
-      setErrorNotification(`Blog is missing needed information`)
-      hideNotification()
+      return handleError(error)
     }
   }
 
-  const hideNotification = () => {
-    setTimeout(() => {
-      setNotification('')
-      setErrorNotification('')
-    }, 3000)
+  const handleLike = async blog => {
+    try {
+      const updatedBlog = await blogService.update({
+        ...blog,
+        likes: blog.likes + 1,
+      })
+      handleSetBlogs(blogs.map(b => (b.id !== blog.id ? b : updatedBlog)))
+    } catch (error) {
+      handleError(error)
+    }
+  }
+
+  const handleDelete = async blog => {
+    if (confirm(`Delete blog ${blog.title} by ${blog.author}?`)) {
+      try {
+        await blogService.remove(blog.id)
+        handleSetBlogs(blogs.filter(b => b.id !== blog.id))
+        setNotification(`Deleted ${blog.title} by ${blog.author}`)
+        hideNotification()
+      } catch (error) {
+        handleError(error)
+      }
+    }
+  }
+
+  const handleError = error => {
+    const msg = error.response.data.error
+    console.error(error.response.status, msg)
+    if (msg === 'token has expired') {
+      setErrorNotification('Your session has expired, logging out')
+      handleLogout()
+      hideNotification(true)
+      return true
+    } else if (msg === 'invalid or missing token') {
+      setErrorNotification('You must be logged in to add blogs')
+      hideNotification(true)
+      return true
+    } else if (msg === 'invalid username or password') {
+      setErrorNotification('Wrong username or password')
+      hideNotification(true)
+      return true
+    } else if (msg === 'You may only delete blogs you created') {
+      setErrorNotification(
+        'Deletion failed: cannot delete blogs created by another account'
+      )
+      hideNotification(true)
+      return false
+    } else if (msg.includes('Blog validation failed')) {
+      setErrorNotification('Blog is missing needed information')
+      hideNotification(true)
+      return false
+    } else {
+      setErrorNotification(msg)
+      hideNotification(true)
+      return false
+    }
+  }
+
+  const hideNotification = (isError = false) => {
+    if (isError) {
+      setTimeout(() => {
+        setErrorNotification('')
+      }, 4000)
+    } else {
+      setTimeout(() => {
+        setNotification('')
+      }, 4000)
+    }
   }
 
   const loginForm = () => {
@@ -114,6 +172,8 @@ const App = () => {
     )
   }
 
+  const newBlogFormRef = useRef()
+
   const bloglist = () => {
     return (
       <div>
@@ -122,42 +182,18 @@ const App = () => {
         <p>
           {user.name} logged in <button onClick={handleLogout}>logout</button>{' '}
         </p>
-        <div>
-          <h2>create a new blog</h2>
-          <form onSubmit={handleAddBlog}>
-            <p>
-              title:{' '}
-              <input
-                type='text'
-                value={title}
-                name='Title'
-                onChange={({ target }) => setTitle(target.value)}
-              />
-            </p>
-            <p>
-              author:{' '}
-              <input
-                type='text'
-                value={author}
-                name='Author'
-                onChange={({ target }) => setAuthor(target.value)}
-              />
-            </p>
-            <p>
-              url:{' '}
-              <input
-                type='text'
-                value={url}
-                name='URL'
-                onChange={({ target }) => setURL(target.value)}
-              />
-            </p>
-            <button type='submit'>create</button>
-          </form>
-        </div>
+        <Togglable buttonLabel='new blog' ref={newBlogFormRef}>
+          <NewBlogForm handleAddBlog={handleAddBlog} />
+        </Togglable>
         <br />
         {blogs.map(blog => (
-          <Blog key={blog.id} blog={blog} />
+          <Blog
+            key={blog.id}
+            blog={blog}
+            handleLike={handleLike}
+            handleDelete={handleDelete}
+            allowDeletion={user.username === blog.user.username}
+          />
         ))}
       </div>
     )
