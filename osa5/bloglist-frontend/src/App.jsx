@@ -3,7 +3,7 @@ import Blog from './components/Blog'
 import blogService from './services/blogs'
 import loginService from './services/login'
 import Notification from './components/Notification'
-import NewBlogForm from './components/newblogform'
+import NewBlogForm from './components/NewBlogForm'
 import Togglable from './components/Togglable'
 
 const App = () => {
