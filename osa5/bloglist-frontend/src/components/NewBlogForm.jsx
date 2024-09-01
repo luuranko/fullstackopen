@@ -30,6 +30,7 @@ const NewBlogForm = ({ handleAddBlog }) => {
             type='text'
             value={title}
             name='Title'
+            data-testid='title-input'
             onChange={({ target }) => setTitle(target.value)}
           />
         </p>
@@ -39,6 +40,7 @@ const NewBlogForm = ({ handleAddBlog }) => {
             type='text'
             value={author}
             name='Author'
+            data-testid='author-input'
             onChange={({ target }) => setAuthor(target.value)}
           />
         </p>
@@ -48,10 +50,13 @@ const NewBlogForm = ({ handleAddBlog }) => {
             type='text'
             value={url}
             name='URL'
+            data-testid='url-input'
             onChange={({ target }) => setURL(target.value)}
           />
         </p>
-        <button type='submit'>create</button>
+        <button type='submit' data-testid='create-blog-button'>
+          create
+        </button>
       </form>
     </div>
   )

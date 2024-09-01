@@ -1,0 +1,17 @@
+{
+  "name": "bloglist-tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test --project firefox",
+    "test:report": "playwright show-report --project firefox",
+    "test:ui": "playwright test --ui --project firefox"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.42.1",
+    "@types/node": "^20.12.2"
+  }
+}
