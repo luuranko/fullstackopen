@@ -1,4 +1,4 @@
-# Full Stack Open 2023
+# Full Stack Open
 
 3. osan puhelinluettelo
    [Renderissä](https://fullstack-puhelinluettelo-eadc.onrender.com)
@@ -7,7 +7,7 @@
 
 ### Osa 0
 
-1, 2, 3
+1, 2, 3, 4, 5, 6
 
 ### Osa 1
 
