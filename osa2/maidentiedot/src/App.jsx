@@ -111,7 +111,7 @@ const App = () => {
 
   const hook = () => {
     axios
-      .get('https://restcountries.com/v3.1/all')
+      .get('https://studies.cs.helsinki.fi/restcountries/api/all')
       .then(response => {
         setCountries(response.data)
       })
