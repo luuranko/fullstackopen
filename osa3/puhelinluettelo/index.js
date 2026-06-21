@@ -21,7 +21,9 @@ app.get('/', (req, res) => {
 })
 
 app.get('/info', (req, res) => {
+  console.log('in info')
   Person.find({}).then(persons => {
+    console.log('trying to find with Person.find')
     const info = `Phonebook has info for ${persons.length} people`
     const reqTime = new Date()
     res.send(`<p>${info}</p><p>${reqTime}</p>`)
@@ -84,7 +86,7 @@ const errorHandler = (error, req, res, next) => {
 }
 app.use(errorHandler)
 
-const PORT = process.env.PORT
+const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
