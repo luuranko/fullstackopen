@@ -42,6 +42,9 @@ const tokenExtractor = (req, res, next) => {
 }
 
 const userExtractor = (req, res, next) => {
+  if (!process.env.SECRET) {
+    console.error('No SECRET environment variable has been set!')
+  }
   const decodedToken = jwt.verify(req.token, process.env.SECRET)
   if (!decodedToken.id) {
     return res.status(401).json({ error: 'invalid token' })

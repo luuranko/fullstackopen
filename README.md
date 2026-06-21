@@ -24,9 +24,7 @@
 ### Osa 4
 
 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-23 _Huomio tehtävästä 23: testit eivät toimineet oikein komennolla node --test
-kun kaikki testit testataan kerralla, mutta suorittaessa kukin tiedosto erikseen
-ne toimivat._
+23 _Note: npm run test script modified to run each test file separately to prevent potential issues_
 
 ### Osa 5
 
