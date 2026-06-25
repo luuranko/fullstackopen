@@ -32,12 +32,12 @@ describe('Bloglist', () => {
   })
 
   describe('Login', () => {
-    test('user cannot log in with wrong credentials', async ({ page }) => {
+    test('fails with wrong credentials', async ({ page }) => {
       await loginWith(page, USERNAME, 'wrongpassword')
       await expectErrorMessageWithText(page, 'Wrong username or password')
       await expect(page.getByText(`${NAME} logged in`)).not.toBeVisible()
     })
-    test('user can log in with correct credentials', async ({ page }) => {
+    test('succeeds with correct credentials', async ({ page }) => {
       await loginWith(page, USERNAME, PASSWORD)
       await expect(page.getByText(`${NAME} logged in`)).toBeVisible()
       await expect(page.getByRole('button', { name: 'logout' })).toBeVisible()

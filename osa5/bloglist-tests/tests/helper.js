@@ -6,7 +6,7 @@ export const loginWith = async (page, username, password) => {
 }
 
 export const createBlogWith = async (page, title, author, url) => {
-  await page.getByRole('button', { name: 'new blog' }).click()
+  await page.getByRole('button', { name: 'create new blog' }).click()
   await page.getByTestId('title-input').fill(title)
   await page.getByTestId('author-input').fill(author)
   await page.getByTestId('url-input').fill(url)

@@ -38,6 +38,7 @@ const App = () => {
     event.preventDefault()
     try {
       const user = await loginService.login({ username, password })
+      console.log(user)
       window.localStorage.setItem('loggedBloglistUser', JSON.stringify(user))
       blogService.setToken(user.token)
       setUser(user)
@@ -184,7 +185,7 @@ const App = () => {
         <p>
           {user.name} logged in <button onClick={handleLogout}>logout</button>{' '}
         </p>
-        <Togglable buttonLabel='new blog' ref={newBlogFormRef}>
+        <Togglable buttonLabel='create new blog' ref={newBlogFormRef}>
           <NewBlogForm handleAddBlog={handleAddBlog} />
         </Togglable>
         <br />
