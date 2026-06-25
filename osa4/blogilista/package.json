@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npm run tests -- tests/blogs_api.test.js && npm run tests -- tests/users_api.test.js && npm run tests -- tests/helpers_functions.test.js",
     "tests": "cross-env NODE_ENV=test node --test",
-    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "dev": "cross-env NODE_ENV=development node --watch index.js",
     "start": "cross-env NODE_ENV=production node index.js",
     "lint": "eslint . --fix",
     "prettier": "npx prettier . --write",
